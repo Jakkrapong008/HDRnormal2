@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจองห้องประชุมและใช้สถานที่</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* กำหนดฟอนต์ Sarabun สำหรับทุกองค์ประกอบ */
+        * {
+            font-family: 'Sarabun', sans-serif;
+        }
+        
+        /* แอนิเมชั่น Fade In */
+        .fade-in {
+            animation: fadeIn 0.8s ease-in;
+        }
+        
+        /* แอนิเมชั่น Slide Up */
+        .slide-up {
+            animation: slideUp 0.6s ease-out;
+        }
+        
+        /* แอนิเมชั่น Bounce In */
+        .bounce-in {
+            animation: bounceIn 0.8s ease-out;
+        }
+        
+        /* คีย์เฟรมสำหรับ Fade In */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* คีย์เฟรมสำหรับ Slide Up */
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        /* คีย์เฟรมสำหรับ Bounce In */
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* ซ่อนเนื้อหาแท็บเริ่มต้น */
+        .tab-content {
+            display: none;
+        }
+        
+        /* แสดงเนื้อหาแท็บที่ใช้งานอยู่ */
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* สไตล์สำหรับวันในปฏิทิน */
+        .calendar-day {
+            min-height: 100px;
+            border: 1px solid #e5e7eb;
+            position: relative;
+        }
+        
+        /* สไตล์สำหรับวันที่มีการจอง */
+        .calendar-day.has-booking {
+            background: linear-gradient(135deg, #fecaca, #fef2f2);
+        }
+        
+        /* สไตล์สำหรับตัวบ่งชี้การจอง */
+        .booking-indicator {
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin: 1px 0;
+        }
+        
+        /* สไตล์สำหรับ Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        /* สไตล์สำหรับเนื้อหา Modal */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-red-50 to-pink-50 min-h-screen">
+    <!-- ส่วนหัว (Header) -->
+    <header class="bg-white shadow-lg border-b-4 border-red-200 fade-in">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <img src="https://img2.pic.in.th/pic/logo-HDR.md.png" alt="โลโก้โรงเรียน" class="h-16 w-auto bounce-in">
+                <div class="text-center flex-1 mx-8">
+                    <h1 class="text-2xl md:text-4xl font-bold text-red-600 mb-2 slide-up">
+                        📅 ระบบจองห้องประชุมและใช้สถานที่ 🏫
+                    </h1>
+                    <p class="text-lg text-red-400 font-medium slide-up" style="animation-delay: 0.2s;">
+                        โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์
+                    </p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- แถบนำทาง (Navigation Tabs) -->
+    <nav class="bg-white shadow-md border-b-2 border-red-100 sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex space-x-0">
+                <button onclick="showTab('booking', this)" class="tab-btn flex-1 py-4 px-6 text-center font-semibold text-red-600 border-b-3 border-red-500 bg-red-50 transition-all duration-300">
+                    📝 จองห้องประชุม
+                </button>
+                <button onclick="showTab('calendar', this)" class="tab-btn flex-1 py-4 px-6 text-center font-semibold text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all duration-300">
+                    📅 ตารางการจอง
+                </button>
+                <button onclick="showTab('statistics', this)" class="tab-btn flex-1 py-4 px-6 text-center font-semibold text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all duration-300">
+                    📊 สถิติการใช้งาน
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- เนื้อหาหลัก (Main Content) -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- แท็บ 1: แบบฟอร์มการจอง (Booking Form) -->
+        <div id="booking" class="tab-content active">
+            <div class="bg-white rounded-xl shadow-lg p-8 slide-up">
+                <h2 class="text-2xl font-bold text-red-600 mb-6 text-center">
+                    ✍️ กรอกข้อมูลการจองห้องประชุมและสถานที่
+                </h2>
+                
+                <form id="bookingForm" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                👤 ชื่อ-นามสกุล ผู้จอง *
+                            </label>
+                            <input type="text" id="fullName" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                📞 เบอร์โทร *
+                            </label>
+                            <input type="tel" id="phone" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            🏢 กลุ่มงาน/กลุ่มสาระฯ *
+                        </label>
+                        <select id="department" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                            <option value="">เลือกกลุ่มงาน</option>
+                            <option value="วิชาการ">วิชาการ</option>
+                            <option value="กิจการนักเรียน">กิจการนักเรียน</option>
+                            <option value="บริหารทั่วไป">บริหารทั่วไป</option>
+                            <option value="บุคคล">บุคคล</option>
+                            <option value="ธุรการ">ธุรการ</option>
+                            <option value="งบประมาณ">งบประมาณ</option>
+                            <option value="แผนงาน">แผนงาน</option>
+                            <option value="ภาษาไทย">ภาษาไทย</option>
+                            <option value="ศิลปะ">ศิลปะ</option>
+                            <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+                            <option value="สุขศึกษาและพลศึกษา">สุขศึกษาและพลศึกษา</option>
+                            <option value="วิทยาศาสตร์และเทคโนโลยี">วิทยาศาสตร์และเทคโนโลยี</option>
+                            <option value="สังคมศึกษาศาสนาและวัฒนธรรม">สังคมศึกษาศาสนาและวัฒนธรรม</option>
+                            <option value="การงานอาชีพ">การงานอาชีพ</option>
+                            <option value="ภาษาต่างประเทศ">ภาษาต่างประเทศ</option>
+                            <option value="อื่น ๆ">อื่น ๆ</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            🎯 วัตถุประสงค์ในการจัดกิจกรรม *
+                        </label>
+                        <select id="purpose" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors" onchange="togglePurposeInput()">
+                            <option value="">เลือกวัตถุประสงค์</option>
+                            <option value="จัดประชุม">จัดประชุม</option>
+                            <option value="จัดอบรม">จัดอบรม</option>
+                            <option value="จัดสัมมนา">จัดสัมมนา</option>
+                            <option value="จัดกิจกรรม/โครงการ">จัดกิจกรรม/โครงการ</option>
+                            <option value="การเรียนการสอน">การเรียนการสอน</option>
+                            <option value="อื่นๆ">อื่นๆ</option>
+                        </select>
+                        <input type="text" id="purposeDetail" placeholder="ระบุรายละเอียดเพิ่มเติม" class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors mt-2 hidden">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            🏛️ สถานที่จัดกิจกรรม *
+                        </label>
+                        <select id="location" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                            <option value="">เลือกสถานที่</option>
+                            <option value="ห้องโสตทัศนศึกษา 1">ห้องโสตทัศนศึกษา 1</option>
+                            <option value="ห้องโสตทัศนศึกษา 2">ห้องโสตทัศนศึกษา 2</option>
+                            <option value="ห้องโสตทัศนศึกษา 3">ห้องโสตทัศนศึกษา 3</option>
+                            <option value="ห้องปลอดฝุ่น">ห้องปลอดฝุ่น</option>
+                            <option value="ห้องTGT">ห้องTGT</option>
+                            <option value="อาคารแม่ท่าช้าง">อาคารแม่ท่าช้าง</option>
+                            <option value="ลาน Play and Learn">ลาน Play and Learn</option>
+                            <option value="สนามฟุตบอล">สนามฟุตบอล</option>
+                            <option value="ห้องสมุด">ห้องสมุด</option>
+                            <option value="ห้องสวนพฤกษศาสตร์โรงเรียน">ห้องสวนพฤกษศาสตร์โรงเรียน</option>
+                        </select>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                📅 วันที่จอง *
+                            </label>
+                            <input type="date" id="bookingDate" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                🕐 เวลาเริ่ม *
+                            </label>
+                            <input type="time" id="startTime" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                🕐 เวลาสิ้นสุด *
+                            </label>
+                            <input type="time" id="endTime" required class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            🎤 ความต้องการใช้อุปกรณ์
+                        </label>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" name="equipment" value="เครื่องขยายเสียง" class="w-4 h-4 text-red-600">
+                                <span>🔊 เครื่องขยายเสียง</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" name="equipment" value="projector" class="w-4 h-4 text-red-600">
+                                <span>📽️ Projector</span>
+                            </label>
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" name="equipment" value="ไมโครโฟนมีสาย" class="w-4 h-4 text-red-600">
+                                <span>🎤 ไมโครโฟนมีสาย</span>
+                                <input type="number" id="wiredMicCount" placeholder="จำนวน" class="w-20 px-2 py-1 border border-red-200 rounded text-sm">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" name="equipment" value="ไมโครโฟนไร้สาย" class="w-4 h-4 text-red-600">
+                                <span>📻 ไมโครโฟนไร้สาย</span>
+                                <input type="number" id="wirelessMicCount" placeholder="จำนวน" class="w-20 px-2 py-1 border border-red-200 rounded text-sm">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" name="equipment" value="อื่นๆ" class="w-4 h-4 text-red-600">
+                                <span>📦 อื่นๆ</span>
+                                <input type="text" id="otherEquipment" placeholder="ระบุ" class="flex-1 px-2 py-1 border border-red-200 rounded text-sm">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="bg-gradient-to-r from-red-500 to-pink-500 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:from-red-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-300 shadow-lg">
+                            💾 บันทึกการจอง
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- แท็บ 2: มุมมองปฏิทิน (Calendar View) -->
+        <div id="calendar" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-red-600">📅 ตารางการจองห้องประชุม</h2>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="previousMonth()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">◀ เดือนก่อน</button>
+                        <span id="currentMonth" class="text-lg font-semibold text-red-600"></span>
+                        <button onclick="nextMonth()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">เดือนถัดไป ▶</button>
+                    </div>
+                </div>
+                
+                <div id="calendarGrid" class="grid grid-cols-7 gap-1 mb-8">
+                    <!-- ปฏิทินจะถูกสร้างขึ้นที่นี่ -->
+                </div>
+                
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold text-red-600 mb-4">📋 รายการการจองแยกตามสถานที่</h3>
+                    <div id="bookingTable" class="space-y-6">
+                        <!-- ตารางการจองจะถูกสร้างขึ้นที่นี่ -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- แท็บ 3: สถิติ (Statistics) -->
+        <div id="statistics" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold text-red-600 mb-6 text-center">📊 สถิติการใช้ห้องประชุม</h2>
+                
+                <!-- ตัวเลือกการกรอง -->
+                <div class="flex flex-wrap items-center justify-center gap-4 mb-8">
+                    <div>
+                        <label for="filterYear" class="block text-sm font-semibold text-gray-700 mb-1">เลือกปี:</label>
+                        <select id="filterYear" class="w-full px-4 py-2 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors" onchange="updateStatistics()">
+                            <!-- ตัวเลือกปีจะถูกสร้างด้วย JavaScript -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filterMonth" class="block text-sm font-semibold text-gray-700 mb-1">เลือกเดือน:</label>
+                        <select id="filterMonth" class="w-full px-4 py-2 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors" onchange="updateStatistics()">
+                            <option value="all">ทั้งหมด</option>
+                            <option value="0">มกราคม</option>
+                            <option value="1">กุมภาพันธ์</option>
+                            <option value="2">มีนาคม</option>
+                            <option value="3">เมษายน</option>
+                            <option value="4">พฤษภาคม</option>
+                            <option value="5">มิถุนายน</option>
+                            <option value="6">กรกฎาคม</option>
+                            <option value="7">สิงหาคม</option>
+                            <option value="8">กันยายน</option>
+                            <option value="9">ตุลาคม</option>
+                            <option value="10">พฤศจิกายน</option>
+                            <option value="11">ธันวาคม</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-xl">
+                        <h3 class="text-lg font-semibold text-red-600 mb-4">📈 จำนวนวันใช้งานรายเดือน</h3>
+                        <canvas id="monthlyChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-xl">
+                        <h3 class="text-lg font-semibold text-red-600 mb-4">🏢 การใช้งานตามกลุ่มงาน</h3>
+                        <canvas id="departmentChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-xl">
+                        <h3 class="text-lg font-semibold text-red-600 mb-4">🏛️ การใช้งานตามสถานที่</h3>
+                        <canvas id="locationChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-xl">
+                        <h3 class="text-lg font-semibold text-red-600 mb-4">🎯 วัตถุประสงค์การใช้งาน</h3>
+                        <canvas id="purposeChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal แสดงความสำเร็จ (Success Modal) -->
+    <div id="successModal" class="modal">
+        <div class="modal-content text-center">
+            <div class="text-6xl mb-4">✅</div>
+            <h3 class="text-2xl font-bold text-green-600 mb-4">บันทึกข้อมูลสำเร็จ!</h3>
+            <p class="text-gray-600 mb-6">การจองของคุณได้รับการบันทึกเรียบร้อยแล้ว</p>
+            <button onclick="closeModal()" class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal รายละเอียดการจอง (Booking Details Modal) -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-red-600">📋 รายละเอียดการจอง</h3>
+                <button onclick="closeBookingModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div id="bookingDetails"></div>
+        </div>
+    </div>
+
+    <!-- ส่วนท้าย (Footer) -->
+    <footer class="bg-white border-t-4 border-red-200 mt-16 py-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-red-600 font-medium">
+                👥 จัดทำโดย กลุ่มงานบริหารทั่วไป โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์ 🏫
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // ตัวแปรส่วนกลาง
+        let currentDate = new Date();
+        let bookings = [];
+        // URL ของ Google Apps Script ที่คุณได้ Deploy ไว้
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9n29jxMgK-LXnFammfd0AD7hjp3evu_lKh7s-Z1wt6YZxegr9bQPBU5zB5phFzQ/exec'; // แทนที่ด้วย URL ของคุณ
+
+        // สีสันสดใสสำหรับกราฟ
+        const CHART_COLORS = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+            '#E7E9ED', '#8AC926', '#FFCA3A', '#1982C4', '#6A4C93', '#F45B69',
+            '#5B84B1', '#C1B4A6', '#C70039', '#FFC300', '#DAF7A6', '#FF5733',
+            '#C70039', '#900C3F', '#581845', '#FFC300', '#FF5733', '#C70039'
+        ];
+
+        // เริ่มต้นแอปพลิเคชันเมื่อ DOM โหลดเสร็จ
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBookings(); // โหลดข้อมูลการจอง
+            generateCalendar(); // สร้างปฏิทิน
+            setupFilterOptions(); // ตั้งค่าตัวเลือกการกรอง
+            updateStatistics(); // อัปเดตสถิติ
+            
+            // กำหนดวันที่ขั้นต่ำในฟอร์มจองเป็นวันนี้
+            document.getElementById('bookingDate').min = new Date().toISOString().split('T')[0];
+        });
+
+        // ฟังก์ชันสลับแท็บ
+        function showTab(tabName, clickedButton) {
+            // ซ่อนแท็บทั้งหมด
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // ลบคลาส active จากปุ่มทั้งหมด
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-red-500', 'bg-red-50', 'text-red-600');
+                btn.classList.add('text-gray-600');
+            });
+            
+            // แสดงแท็บที่เลือก
+            document.getElementById(tabName).classList.add('active');
+            
+            // เพิ่มคลาส active ให้กับปุ่มที่ถูกคลิก
+            clickedButton.classList.add('border-red-500', 'bg-red-50', 'text-red-600');
+            clickedButton.classList.remove('text-gray-600');
+            
+            // รีเฟรชเนื้อหาตามแท็บ
+            if (tabName === 'calendar') {
+                generateCalendar();
+                generateBookingTable();
+            } else if (tabName === 'statistics') {
+                updateStatistics();
+            }
+        }
+
+        // ฟังก์ชันสลับการแสดงช่องกรอกวัตถุประสงค์เพิ่มเติม
+        function togglePurposeInput() {
+            const purpose = document.getElementById('purpose').value;
+            const purposeDetail = document.getElementById('purposeDetail');
+            
+            if (purpose === 'จัดกิจกรรม/โครงการ' || purpose === 'อื่นๆ') {
+                purposeDetail.classList.remove('hidden');
+                purposeDetail.required = true;
+            } else {
+                purposeDetail.classList.add('hidden');
+                purposeDetail.required = false;
+                purposeDetail.value = '';
+            }
+        }
+
+        // การส่งแบบฟอร์ม
+        document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // แสดงสถานะกำลังโหลด
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '⏳ กำลังบันทึก...';
+            submitBtn.disabled = true;
+            
+            const bookingData = {
+                fullName: document.getElementById('fullName').value,
+                phone: document.getElementById('phone').value,
+                department: document.getElementById('department').value,
+                purpose: document.getElementById('purpose').value,
+                purposeDetail: document.getElementById('purposeDetail').value,
+                location: document.getElementById('location').value,
+                bookingDate: document.getElementById('bookingDate').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                equipment: getSelectedEquipment()
+            };
+
+            // ตรวจสอบเวลา
+            if (bookingData.startTime >= bookingData.endTime) {
+                // แทนที่ alert() ด้วยการแสดงข้อความใน modal หรือ element อื่นๆ
+                showCustomAlert('⚠️ เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
+            // ตรวจสอบความขัดแย้ง
+            if (hasTimeConflict(bookingData)) {
+                // แทนที่ alert() ด้วยการแสดงข้อความใน modal หรือ element อื่นๆ
+                showCustomAlert('⚠️ มีการจองซ้อนกันในช่วงเวลาและสถานที่นี้แล้ว กรุณาเลือกเวลาอื่น');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
+            try {
+                // ส่งข้อมูลไปยัง Google Apps Script
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // ใช้ no-cors เนื่องจากเป็น Google Apps Script
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'addBooking',
+                        data: bookingData
+                    })
+                });
+
+                // เนื่องจากใช้ no-cors โหมด จะถือว่าสำเร็จ
+                // เพิ่มการจองลงในอาร์เรย์ในเครื่องเพื่ออัปเดต UI ทันที
+                bookings.push(bookingData);
+                
+                // แสดง modal สำเร็จ
+                document.getElementById('successModal').style.display = 'block';
+                
+                // รีเซ็ตฟอร์ม
+                this.reset();
+                document.getElementById('purposeDetail').classList.add('hidden');
+                
+                // รีเฟรชการแสดงผล
+                generateCalendar();
+                generateBookingTable();
+                updateStatistics();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                // แทนที่ alert() ด้วยการแสดงข้อความใน modal หรือ element อื่นๆ
+                showCustomAlert('❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
+            } finally {
+                // รีเซ็ตสถานะปุ่ม
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        // ฟังก์ชันรับอุปกรณ์ที่เลือก
+        function getSelectedEquipment() {
+            const equipment = [];
+            const checkboxes = document.querySelectorAll('input[name="equipment"]:checked');
+            
+            checkboxes.forEach(checkbox => {
+                let equipmentText = checkbox.value;
+                
+                if (checkbox.value === 'ไมโครโฟนมีสาย') {
+                    const count = document.getElementById('wiredMicCount').value;
+                    if (count) equipmentText += ` (${count} ตัว)`;
+                } else if (checkbox.value === 'ไมโครโฟนไร้สาย') {
+                    const count = document.getElementById('wirelessMicCount').value;
+                    if (count) equipmentText += ` (${count} ตัว)`;
+                } else if (checkbox.value === 'อื่นๆ') {
+                    const detail = document.getElementById('otherEquipment').value;
+                    if (detail) equipmentText += ` (${detail})`;
+                }
+                
+                equipment.push(equipmentText);
+            });
+            
+            return equipment.join(', ');
+        }
+
+        // ฟังก์ชันตรวจสอบความขัดแย้งของเวลา
+        function hasTimeConflict(newBooking) {
+            return bookings.some(booking => {
+                return booking.location === newBooking.location &&
+                       booking.bookingDate === newBooking.bookingDate &&
+                       ((newBooking.startTime >= booking.startTime && newBooking.startTime < booking.endTime) ||
+                        (newBooking.endTime > booking.startTime && newBooking.endTime <= booking.endTime) ||
+                        (newBooking.startTime <= booking.startTime && newBooking.endTime >= booking.endTime));
+            });
+        }
+
+        // ฟังก์ชันโหลดข้อมูลการจองจาก Google Sheets
+        async function loadBookings() {
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getBookings`);
+                // ตรวจสอบว่า response.ok เป็น true ก่อนที่จะพยายามอ่าน JSON
+                if (response.ok) {
+                    bookings = await response.json();
+                } else {
+                    console.error('Failed to load bookings:', response.status, response.statusText);
+                    // หากไม่สำเร็จ อาจจะตั้งค่า bookings เป็นอาร์เรย์ว่าง หรือจัดการข้อผิดพลาดตามความเหมาะสม
+                    bookings = []; 
+                }
+            } catch (error) {
+                console.error('Error loading bookings:', error);
+                bookings = []; // ในกรณีที่เกิดข้อผิดพลาดในการเชื่อมต่อ
+            }
+        }
+
+        // ฟังก์ชันปฏิทิน
+        function generateCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // อัปเดตการแสดงผลเดือน
+            const monthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+                              'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+            document.getElementById('currentMonth').textContent = `${monthNames[month]} ${year + 543}`;
+            
+            // สร้างตารางปฏิทิน
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            let calendarHTML = '';
+            
+            // หัวข้อวันในสัปดาห์
+            const dayHeaders = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+            dayHeaders.forEach(day => {
+                calendarHTML += `<div class="text-center font-semibold text-red-600 py-2 bg-red-50">${day}</div>`;
+            });
+            
+            // เซลล์ว่างสำหรับวันก่อนเริ่มต้นเดือน
+            for (let i = 0; i < firstDay; i++) {
+                calendarHTML += '<div class="calendar-day"></div>';
+            }
+            
+            // วันที่ในเดือน
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayBookings = bookings.filter(booking => booking.bookingDate === dateStr);
+                
+                let dayClass = 'calendar-day';
+                let bookingIndicators = '';
+                
+                if (dayBookings.length > 0) {
+                    dayClass += ' has-booking cursor-pointer';
+                    dayBookings.forEach(booking => {
+                        bookingIndicators += `<div class="booking-indicator bg-red-200 text-red-800 text-xs rounded">${booking.startTime}-${booking.endTime} ${booking.location}</div>`;
+                    });
+                }
+                
+                calendarHTML += `
+                    <div class="${dayClass}" onclick="showDayBookings('${dateStr}')">
+                        <div class="font-semibold text-gray-700 mb-1">${day}</div>
+                        ${bookingIndicators}
+                    </div>
+                `;
+            }
+            
+            document.getElementById('calendarGrid').innerHTML = calendarHTML;
+        }
+
+        // ฟังก์ชันไปเดือนก่อนหน้า
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            generateCalendar();
+            generateBookingTable();
+        }
+
+        // ฟังก์ชันไปเดือนถัดไป
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            generateCalendar();
+            generateBookingTable();
+        }
+
+        // ฟังก์ชันแสดงการจองในแต่ละวัน
+        function showDayBookings(dateStr) {
+            const dayBookings = bookings.filter(booking => booking.bookingDate === dateStr);
+            
+            if (dayBookings.length === 0) return;
+            
+            let detailsHTML = `<h4 class="font-semibold text-red-600 mb-4">📅 การจองวันที่ ${formatThaiDate(dateStr)}</h4>`;
+            
+            dayBookings.forEach(booking => {
+                detailsHTML += `
+                    <div class="border-l-4 border-red-300 pl-4 mb-4 bg-red-50 p-4 rounded">
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div><strong>👤 ผู้จอง:</strong> ${booking.fullName}</div>
+                            <div><strong>📞 เบอร์โทร:</strong> ${booking.phone}</div>
+                            <div><strong>🏢 กลุ่มงาน:</strong> ${booking.department}</div>
+                            <div><strong>🕐 เวลา:</strong> ${booking.startTime} - ${booking.endTime}</div>
+                            <div class="col-span-2"><strong>🏛️ สถานที่:</strong> ${booking.location}</div>
+                            <div class="col-span-2"><strong>🎯 วัตถุประสงค์:</strong> ${booking.purpose}${booking.purposeDetail ? ' (' + booking.purposeDetail + ')' : ''}</div>
+                            ${booking.equipment ? `<div class="col-span-2"><strong>🎤 อุปกรณ์:</strong> ${booking.equipment}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('bookingDetails').innerHTML = detailsHTML;
+            document.getElementById('bookingModal').style.display = 'block';
+        }
+
+        // ฟังก์ชันสร้างตารางการจอง
+        function generateBookingTable() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthStart = new Date(year, month, 1);
+            const monthEnd = new Date(year, month + 1, 0);
+            
+            const monthBookings = bookings.filter(booking => {
+                const bookingDate = new Date(booking.bookingDate);
+                return bookingDate >= monthStart && bookingDate <= monthEnd;
+            });
+            
+            // จัดกลุ่มตามสถานที่
+            const locationGroups = {};
+            monthBookings.forEach(booking => {
+                if (!locationGroups[booking.location]) {
+                    locationGroups[booking.location] = [];
+                }
+                locationGroups[booking.location].push(booking);
+            });
+            
+            let tableHTML = '';
+            
+            Object.keys(locationGroups).sort().forEach(location => {
+                const locationBookings = locationGroups[location].sort((a, b) => {
+                    if (a.bookingDate !== b.bookingDate) {
+                        return new Date(a.bookingDate) - new Date(b.bookingDate);
+                    }
+                    return a.startTime.localeCompare(b.startTime);
+                });
+                
+                tableHTML += `
+                    <div class="bg-red-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-600 mb-3">🏛️ ${location}</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="bg-red-100">
+                                        <th class="px-3 py-2 text-left">วันที่จอง</th>
+                                        <th class="px-3 py-2 text-left">ชื่อ-นามสกุล ผู้จอง</th>
+                                        <th class="px-3 py-2 text-left">เวลา</th>
+                                        <th class="px-3 py-2 text-left">วัตถุประสงค์</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                locationBookings.forEach(booking => {
+                    tableHTML += `
+                        <tr class="border-b border-red-200">
+                            <td class="px-3 py-2">${formatThaiDate(booking.bookingDate)}</td>
+                            <td class="px-3 py-2">${booking.fullName}</td>
+                            <td class="px-3 py-2">${booking.startTime} - ${booking.endTime}</td>
+                            <td class="px-3 py-2">${booking.purpose}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('bookingTable').innerHTML = tableHTML || '<p class="text-gray-500 text-center">ไม่มีการจองในเดือนนี้</p>';
+        }
+
+        // ฟังก์ชันตั้งค่าตัวเลือกปีและเดือนสำหรับตัวกรอง
+        function setupFilterOptions() {
+            const filterYearSelect = document.getElementById('filterYear');
+            const currentYear = new Date().getFullYear();
+            
+            // เพิ่มตัวเลือกปี (จาก 5 ปีก่อนหน้าถึง 1 ปีในอนาคต)
+            for (let i = currentYear - 5; i <= currentYear + 1; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i + 543; // แปลงเป็นปีพุทธศักราช
+                if (i === currentYear) {
+                    option.selected = true;
+                }
+                filterYearSelect.appendChild(option);
+            }
+        }
+
+        // ฟังก์ชันอัปเดตสถิติ
+        function updateStatistics() {
+            const selectedYear = parseInt(document.getElementById('filterYear').value);
+            const selectedMonth = document.getElementById('filterMonth').value; // 'all' หรือ index เดือน (0-11)
+
+            // กรองข้อมูลการจองตามปีและเดือนที่เลือก
+            const filteredBookings = bookings.filter(booking => {
+                const bookingDate = new Date(booking.bookingDate);
+                const bookingYear = bookingDate.getFullYear();
+                const bookingMonth = bookingDate.getMonth();
+
+                const yearMatch = (bookingYear === selectedYear);
+                const monthMatch = (selectedMonth === 'all' || bookingMonth === parseInt(selectedMonth));
+
+                return yearMatch && monthMatch;
+            });
+
+            updateMonthlyChart(filteredBookings, selectedYear);
+            updateDepartmentChart(filteredBookings);
+            updateLocationChart(filteredBookings);
+            updatePurposeChart(filteredBookings);
+        }
+
+        // ฟังก์ชันอัปเดตกราฟจำนวนวันใช้งานรายเดือน
+        function updateMonthlyChart(filteredBookings, selectedYear) {
+            const monthlyData = {};
+            
+            // เริ่มต้นเดือนสำหรับปีที่เลือก
+            for (let i = 0; i < 12; i++) {
+                const monthKey = `${selectedYear}-${String(i + 1).padStart(2, '0')}`;
+                monthlyData[monthKey] = 0;
+            }
+            
+            // นับการจองต่อเดือนจากข้อมูลที่กรองแล้ว
+            filteredBookings.forEach(booking => {
+                const monthKey = booking.bookingDate.substring(0, 7);
+                if (monthlyData.hasOwnProperty(monthKey)) {
+                    monthlyData[monthKey]++;
+                }
+            });
+            
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            // ตรวจสอบว่ามี Chart instance อยู่แล้วหรือไม่
+            if (window.monthlyChartInstance) {
+                window.monthlyChartInstance.destroy(); // ทำลาย instance เก่า
+            }
+            window.monthlyChartInstance = new Chart(ctx, { // เก็บ instance ใหม่ไว้ใน window object
+                type: 'line',
+                data: {
+                    labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
+                    datasets: [{
+                        label: 'จำนวนวันใช้งาน',
+                        data: Object.values(monthlyData),
+                        borderColor: CHART_COLORS[0], // ใช้สีแรกจาก palette
+                        backgroundColor: CHART_COLORS[0] + '33', // เพิ่มความโปร่งใส
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // ฟังก์ชันอัปเดตกราฟการใช้งานตามกลุ่มงาน
+        function updateDepartmentChart(filteredBookings) {
+            const departmentData = {};
+            
+            filteredBookings.forEach(booking => {
+                departmentData[booking.department] = (departmentData[booking.department] || 0) + 1;
+            });
+            
+            const ctx = document.getElementById('departmentChart').getContext('2d');
+            // ตรวจสอบว่ามี Chart instance อยู่แล้วหรือไม่
+            if (window.departmentChartInstance) {
+                window.departmentChartInstance.destroy(); // ทำลาย instance เก่า
+            }
+            window.departmentChartInstance = new Chart(ctx, { // เก็บ instance ใหม่ไว้ใน window object
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(departmentData).map(key => `${key} (${departmentData[key]} ครั้ง)`), // เพิ่ม "(จำนวนครั้ง)"
+                    datasets: [{
+                        data: Object.values(departmentData),
+                        backgroundColor: CHART_COLORS.slice(0, Object.keys(departmentData).length) // ใช้สีจาก palette
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 12 // เพิ่มขนาดตัวอักษร
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ฟังก์ชันอัปเดตกราฟห้องที่ได้รับความนิยม
+        function updateLocationChart(filteredBookings) {
+            const locationData = {};
+            
+            filteredBookings.forEach(booking => {
+                locationData[booking.location] = (locationData[booking.location] || 0) + 1;
+            });
+            
+            const ctx = document.getElementById('locationChart').getContext('2d');
+            // ตรวจสอบว่ามี Chart instance อยู่แล้วหรือไม่
+            if (window.locationChartInstance) {
+                window.locationChartInstance.destroy(); // ทำลาย instance เก่า
+            }
+            window.locationChartInstance = new Chart(ctx, { // เก็บ instance ใหม่ไว้ใน window object
+                type: 'bar',
+                data: {
+                    labels: Object.keys(locationData).map(key => `${key} (${locationData[key]} ครั้ง)`), // เพิ่ม "(จำนวนครั้ง)"
+                    datasets: [{
+                        label: 'จำนวนครั้ง',
+                        data: Object.values(locationData),
+                        backgroundColor: CHART_COLORS.slice(0, Object.keys(locationData).length) // ใช้สีจาก palette
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 12 // เพิ่มขนาดตัวอักษรสำหรับแกน X
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // ฟังก์ชันอัปเดตกราฟวัตถุประสงค์การใช้งาน
+        function updatePurposeChart(filteredBookings) {
+            const purposeData = {};
+            
+            filteredBookings.forEach(booking => {
+                purposeData[booking.purpose] = (purposeData[booking.purpose] || 0) + 1;
+            });
+            
+            const ctx = document.getElementById('purposeChart').getContext('2d');
+            // ตรวจสอบว่ามี Chart instance อยู่แล้วหรือไม่
+            if (window.purposeChartInstance) {
+                window.purposeChartInstance.destroy(); // ทำลาย instance เก่า
+            }
+            window.purposeChartInstance = new Chart(ctx, { // เก็บ instance ใหม่ไว้ใน window object
+                type: 'pie',
+                data: {
+                    labels: Object.keys(purposeData).map(key => `${key} (${purposeData[key]} ครั้ง)`), // เพิ่ม "(จำนวนครั้ง)"
+                    datasets: [{
+                        data: Object.values(purposeData),
+                        backgroundColor: CHART_COLORS.slice(0, Object.keys(purposeData).length) // ใช้สีจาก palette
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 12 // เพิ่มขนาดตัวอักษร
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ฟังก์ชันยูทิลิตี้
+        function formatThaiDate(dateStr) {
+            const date = new Date(dateStr);
+            const day = date.getDate();
+            const month = date.getMonth();
+            const year = date.getFullYear() + 543; // แปลงเป็นปีพุทธศักราช
+            
+            const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+                              'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            
+            return `${day} ${monthNames[month]} ${year}`;
+        }
+
+        // ฟังก์ชัน Modal
+        function closeModal() {
+            document.getElementById('successModal').style.display = 'none';
+        }
+
+        function closeBookingModal() {
+            document.getElementById('bookingModal').style.display = 'none';
+        }
+
+        // ฟังก์ชันแสดง Custom Alert (แทนที่ alert())
+        function showCustomAlert(message) {
+            const alertModal = document.createElement('div');
+            alertModal.id = 'customAlertModal';
+            alertModal.className = 'modal';
+            alertModal.innerHTML = `
+                <div class="modal-content text-center">
+                    <div class="text-4xl mb-4 text-red-500">❗</div>
+                    <h3 class="text-xl font-bold text-red-600 mb-4">แจ้งเตือน</h3>
+                    <p class="text-gray-600 mb-6">${message}</p>
+                    <button onclick="closeCustomAlert()" class="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors">
+                        ตกลง
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(alertModal);
+            alertModal.style.display = 'block';
+        }
+
+        // ฟังก์ชันปิด Custom Alert
+        function closeCustomAlert() {
+            const alertModal = document.getElementById('customAlertModal');
+            if (alertModal) {
+                alertModal.remove();
+            }
+        }
+
+        // ปิด modal เมื่อคลิกนอกพื้นที่ modal
+        window.onclick = function(event) {
+            const successModal = document.getElementById('successModal');
+            const bookingModal = document.getElementById('bookingModal');
+            const customAlertModal = document.getElementById('customAlertModal');
+            
+            if (event.target === successModal) {
+                successModal.style.display = 'none';
+            }
+            if (event.target === bookingModal) {
+                bookingModal.style.display = 'none';
+            }
+            if (event.target === customAlertModal) {
+                closeCustomAlert();
+            }
+        }
+    </script>
+</body>
+</html>
