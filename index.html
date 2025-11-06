@@ -226,6 +226,23 @@
                         </select>
                     </div>
                     
+                    <!-- เพิ่ม 2 หัวข้อใหม่ที่นี่ -->
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                👥 จำนวนผู้ที่เข้าร่วมกิจกรรม
+                            </label>
+                            <input type="number" id="participantCount" placeholder="เช่น 50" class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors" min="1">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                🛋️ รูปแบบการจัดสถานที่ (ถ้ามี)
+                            </label>
+                            <input type="text" id="roomLayout" placeholder="เช่น จัดแบบ Classroom" class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none transition-colors">
+                        </div>
+                    </div>
+                    
                     <div class="grid md:grid-cols-3 gap-6">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
@@ -501,6 +518,8 @@
                 purpose: document.getElementById('purpose').value,
                 purposeDetail: document.getElementById('purposeDetail').value, // Always capture purposeDetail
                 location: document.getElementById('location').value,
+                participantCount: document.getElementById('participantCount').value || '', // เพิ่มข้อมูลนี้
+                roomLayout: document.getElementById('roomLayout').value || '', // เพิ่มข้อมูลนี้
                 bookingDate: document.getElementById('bookingDate').value,
                 startTime: document.getElementById('startTime').value,
                 endTime: document.getElementById('endTime').value,
@@ -705,6 +724,8 @@
                             <div><strong>🕐 เวลา:</strong> ${booking.startTime} - ${booking.endTime}</div>
                             <div class="col-span-2"><strong>🏛️ สถานที่:</strong> ${booking.location}</div>
                             <div class="col-span-2"><strong>🎯 วัตถุประสงค์:</strong> ${booking.purpose}${booking.purposeDetail ? ' (' + booking.purposeDetail + ')' : ''}</div>
+                            ${booking.participantCount ? `<div class="col-span-2"><strong>👥 จำนวนผู้เข้าร่วม:</strong> ${booking.participantCount} คน</div>` : ''} <!-- เพิ่มบรรทัดนี้ -->
+                            ${booking.roomLayout ? `<div class="col-span-2"><strong>🛋️ รูปแบบสถานที่:</strong> ${booking.roomLayout}</div>` : ''} <!-- เพิ่มบรรทัดนี้ -->
                             ${booking.equipment ? `<div class="col-span-2"><strong>🎤 อุปกรณ์:</strong> ${booking.equipment}</div>` : ''}
                         </div>
                     </div>
